@@ -18,10 +18,11 @@ from mrcnn import visualize
 import yaml
 from mrcnn.model import log
 from PIL import Image
+# from sklearn.model_selection import train_test_split
 
 # os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 # Root directory of the project
-ROOT_DIR = os.getcwd()
+ROOT_DIR = os.getcwd()  # 获取当前工作目录
 
 # ROOT_DIR = os.path.abspath("../")
 # Directory to save logs and trained model
@@ -30,18 +31,18 @@ MODEL_DIR = os.path.join(ROOT_DIR, "logs")
 iter_num = 0
 
 # Local path to trained weights file
-COCO_MODEL_PATH = os.path.join(ROOT_DIR, "mask_rcnn_coco.h5")
+MODEL_PATH = os.path.join(ROOT_DIR, "mask_rcnn_coco.h5")
 
 
 # Download COCO trained weights from Releases if needed
-# if not os.path.exists(COCO_MODEL_PATH):
-#     utils.download_trained_weights(COCO_MODEL_PATH)
+# if not os.path.exists(MODEL_PATH):
+#     utils.download_trained_weights(MODEL_PATH)
 
 
 class ShapesConfig(Config):
-    """Configuration for training on the toy shapes dataset.
+    """Configuration for training on the toy shapes' dataset.
     Derives from the base Config class and overrides values specific
-    to the toy shapes dataset.
+    to the toy shapes' dataset.
     """
     # Give the configuration a recognizable name
     NAME = "shapes"
@@ -138,17 +139,23 @@ class DrugDataset(utils.Dataset):
             # 获取图片宽和高
             print(i)
             filestr = imglist[i].split(".")[0]
+            print(filestr)
             # print(imglist[i],"-->",cv_img.shape[1],"--->",cv_img.shape[0])
             # print("id-->", i, " imglist[", i, "]-->", imglist[i],"filestr-->",filestr)
             # filestr = filestr.split("_")[1]
             mask_path = mask_floder + "/" + filestr + ".png"
-            yaml_path = dataset_root_path + "labelme_json/" + filestr + "/info.yaml"
-            print(dataset_root_path + "labelme_json/" + filestr + "/img.png")
-            cv_img = cv2.imread(dataset_root_path + "labelme_json/" + filestr + "/img.png")
-            print(type(cv_img))
+            img_path = img_floder + "/" + filestr + ".jpg"
+            yaml_path = dataset_root_path + "yaml/" + filestr + ".yaml"
+            # print(mask_path)
+            # print(img_path)
+            # print(dataset_root_path + "labelme_json/" + filestr + "/img.png")
 
+            cv_img = cv2.imread(img_path)
+            print(type(cv_img))
             self.add_image("shapes", image_id=i, path=img_floder + "/" + imglist[i],
                            width=cv_img.shape[1], height=cv_img.shape[0], mask_path=mask_path, yaml_path=yaml_path)
+            # self.add_image("shapes", image_id=i, path=img_floder + "/" + imglist[i],
+            #                width=cv_img.shape[1], height=cv_img.shape[0], mask_path=mask_path)
 
     # 重写load_mask
     def load_mask(self, image_id):
@@ -204,69 +211,75 @@ def get_ax(rows=1, cols=1, size=8):
     return ax
 '''
 
-# 基础设置
-dataset_root_path = "D:/project/Placental segmentation/MaskRCNN/train_data/"  # 你的数据的路径
-img_floder = dataset_root_path + "pic"
-mask_floder = dataset_root_path + "cv2_mask"
-# yaml_floder = dataset_root_path
-imglist = os.listdir(img_floder)
-count = len(imglist)
+if __name__ == '__main__':
+    # 基础设置
+    dataset_root_path = "D:/project/Placental segmentation/MaskRCNN/train_data/"  # 你的数据的路径
+    img_floder = dataset_root_path + "pic"
+    mask_floder = dataset_root_path + "cv2_mask"
+    # yaml_floder = dataset_root_path
+    imglist = os.listdir(img_floder)
+    count = len(imglist)
 
-# train与val数据集准备
-dataset_train = DrugDataset()
-dataset_train.load_shapes(count, img_floder, mask_floder, imglist, dataset_root_path)
-dataset_train.prepare()
+    # 加载数据集
+    # train与val数据集相同
+    dataset_train = DrugDataset()
+    dataset_train.load_shapes(count, img_floder, mask_floder, imglist, dataset_root_path)
+    dataset_train.prepare()
+    # print("dataset_train-->",dataset_train._image_ids)
+    dataset_val = DrugDataset()
+    dataset_val.load_shapes(count, img_floder, mask_floder, imglist, dataset_root_path)
+    dataset_val.prepare()
 
-# print("dataset_train-->",dataset_train._image_ids)
+    # # 加载数据集
+    # dataset = DrugDataset()
+    # dataset.load_shapes(count, img_floder, mask_floder, imglist, dataset_root_path)
+    # dataset.prepare()
+    # train_ids, val_ids = train_test_split(dataset.image_ids, test_size=0.2, random_state=42)
+    #
+    # print("dataset_val-->",dataset_val._image_ids)
 
-dataset_val = DrugDataset()
-dataset_val.load_shapes(count, img_floder, mask_floder, imglist, dataset_root_path)
-dataset_val.prepare()
+    # Load and display random samples
+    # image_ids = np.random.choice(dataset_train.image_ids, 4)
+    # for image_id in image_ids:
+    #    image = dataset_train.load_image(image_id)
+    #    mask, class_ids = dataset_train.load_mask(image_id)
+    #    visualize.display_top_masks(image, mask, class_ids, dataset_train.class_names)
 
-# print("dataset_val-->",dataset_val._image_ids)
+    # Create model in training mode
+    model = modellib.MaskRCNN(mode="training", config=config,
+                              model_dir=MODEL_DIR)
 
-# Load and display random samples
-# image_ids = np.random.choice(dataset_train.image_ids, 4)
-# for image_id in image_ids:
-#    image = dataset_train.load_image(image_id)
-#    mask, class_ids = dataset_train.load_mask(image_id)
-#    visualize.display_top_masks(image, mask, class_ids, dataset_train.class_names)
+    # Which weights to start with?
+    init_with = "imagenet"  # imagenet, coco, or last
 
-# Create model in training mode
-model = modellib.MaskRCNN(mode="training", config=config,
-                          model_dir=MODEL_DIR)
+    if init_with == "imagenet":
+        model.load_weights(model.get_imagenet_weights(), by_name=True)
+    elif init_with == "coco":
+        # Load weights trained on MS COCO, but skip layers that
+        # are different due to the different number of classes
+        # See README for instructions to download the COCO weights
+        # print(MODEL_PATH)
+        model.load_weights(MODEL_PATH, by_name=True,
+                           exclude=["mrcnn_class_logits", "mrcnn_bbox_fc",
+                                    "mrcnn_bbox", "mrcnn_mask"])
+    elif init_with == "last":
+        # Load the last model you trained and continue training
+        model.load_weights(model.find_last()[1], by_name=True)
 
-# Which weights to start with?
-init_with = "coco"  # imagenet, coco, or last
+    # Train the head branches
+    # Passing layers="heads" freezes all layers except the head
+    # layers. You can also pass a regular expression to select
+    # which layers to train by name pattern.
+    model.train(dataset_train, dataset_val,
+                learning_rate=config.LEARNING_RATE,
+                epochs=10,
+                layers='heads')  # 固定其他层，只训练head，epoch为10
 
-if init_with == "imagenet":
-    model.load_weights(model.get_imagenet_weights(), by_name=True)
-elif init_with == "coco":
-    # Load weights trained on MS COCO, but skip layers that
-    # are different due to the different number of classes
-    # See README for instructions to download the COCO weights
-    # print(COCO_MODEL_PATH)
-    model.load_weights(COCO_MODEL_PATH, by_name=True,
-                       exclude=["mrcnn_class_logits", "mrcnn_bbox_fc",
-                                "mrcnn_bbox", "mrcnn_mask"])
-elif init_with == "last":
-    # Load the last model you trained and continue training
-    model.load_weights(model.find_last()[1], by_name=True)
-
-# Train the head branches
-# Passing layers="heads" freezes all layers except the head
-# layers. You can also pass a regular expression to select
-# which layers to train by name pattern.
-model.train(dataset_train, dataset_val,
-            learning_rate=config.LEARNING_RATE,
-            epochs=10,
-            layers='heads')  # 固定其他层，只训练head，epoch为10
-
-# Fine tune all layers
-# Passing layers="all" trains all layers. You can also
-# pass a regular expression to select which layers to
-# train by name pattern.
-model.train(dataset_train, dataset_val,
-            learning_rate=config.LEARNING_RATE / 10,
-            epochs=10,
-            layers="all")  # 微调所有层的参数，epoch为10
+    # Fine tune all layers
+    # Passing layers="all" trains all layers. You can also
+    # pass a regular expression to select which layers to
+    # train by name pattern.
+    model.train(dataset_train, dataset_val,
+                learning_rate=config.LEARNING_RATE / 10,
+                epochs=10,
+                layers="all")  # 微调所有层的参数，epoch为10

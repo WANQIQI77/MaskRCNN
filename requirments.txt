@@ -1,0 +1,10 @@
+python==3.6
+numpy==1.15.0
+tensorflow-gpu==1.15.0
+pillow
+PyYAML
+keras==2.2.5
+ipython
+
+opencv_python-4.0.0.21-cp36-cp36m-win_amd64.whl
+scikit_image-0.17.2-cp36-cp36m-win_amd64.whl
